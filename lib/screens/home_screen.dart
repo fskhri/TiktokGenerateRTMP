@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../services/tiktok_service.dart';
 import '../models/stream_info.dart';
 import '../main.dart';
+import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onCookiesImported;
@@ -18,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _titleController = TextEditingController(text: 'Test Stream');
-  final _thumbnailController = TextEditingController();
+  String? _thumbnailPath; // Path file thumbnail yang dipilih
   String? _selectedTopic;
   String? _selectedGame; // Game ID yang dipilih
   Map<String, String> _gameList = {}; // Map: game_id -> game_name
@@ -83,6 +84,31 @@ class _HomeScreenState extends State<HomeScreen> {
         _gameList = games;
         _loadingGames = false;
       });
+    }
+  }
+  
+  Future<void> _pickThumbnail() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _thumbnailPath = result.files.single.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${l10n.errorSelectingThumbnail}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -172,26 +198,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showManualImportDialog() async {
+    final l10n = AppLocalizations.of(context)!;
     final controller = TextEditingController();
     
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Cookies'),
+        title: Text(l10n.importCookiesTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Paste isi file cookies.json di sini:',
-              style: TextStyle(fontSize: 14),
+            Text(
+              l10n.pasteCookies,
+              style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
               maxLines: 10,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Paste JSON cookies di sini...',
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: l10n.pasteJsonCookies,
               ),
             ),
           ],
@@ -199,11 +226,11 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Import'),
+            child: Text(l10n.import),
           ),
         ],
       ),
@@ -238,8 +265,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _thumbnailController.dispose();
-    _gameTagController.dispose();
     super.dispose();
   }
 
@@ -294,6 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
       closeRoomWhenStreamEnds: _closeRoomWhenStreamEnds,
       regionPriority: _regionPriority == 'default' ? '' : _regionPriority,
       isMatureContent: _isMatureContent,
+      thumbnailPath: _thumbnailPath,
     );
 
     setState(() {
@@ -458,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Logout',
+            tooltip: AppLocalizations.of(context)!.logout,
           ),
         ],
       ),
@@ -499,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: const Icon(Icons.refresh),
                       onPressed: _importCookies,
-                      tooltip: 'Ganti Cookies',
+                      tooltip: AppLocalizations.of(context)!.changeCookies,
                     ),
                   ],
                 ),
@@ -517,9 +543,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           // Title
                           TextField(
                             controller: _titleController,
-                            decoration: const InputDecoration(
-                              labelText: 'Title',
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: AppLocalizations.of(context)!.title,
+                              border: const OutlineInputBorder(),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -527,48 +553,90 @@ class _HomeScreenState extends State<HomeScreen> {
                           // Topic
                           DropdownButtonFormField<String?>(
                             value: _selectedTopic,
-                            decoration: const InputDecoration(
-                              labelText: 'Topic',
-                              border: OutlineInputBorder(),
+                            isExpanded: true, // Prevent overflow
+                            decoration: InputDecoration(
+                              labelText: AppLocalizations.of(context)!.topic,
+                              border: const OutlineInputBorder(),
                             ),
                             items: _topicOptions.map((option) {
                               return DropdownMenuItem(
                                 value: option['value'],
-                                child: Text(option['label']!),
+                                child: Text(
+                                  option['label']!,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {
                               setState(() {
                                 _selectedTopic = value;
+                                // Reset game selection jika topic bukan gaming
+                                if (value != 'gaming') {
+                                  _selectedGame = null;
+                                } else {
+                                  // Load game list jika belum di-load
+                                  _loadGameList();
+                                }
                               });
                             },
                           ),
                           const SizedBox(height: 16),
                           
-                          // Game Tag ID (hanya muncul jika Topic = Gaming)
+                          // Game (hanya muncul jika Topic = Gaming)
                           if (_selectedTopic == 'gaming') ...[
-                            TextField(
-                              controller: _gameTagController,
-                              decoration: const InputDecoration(
-                                labelText: 'Game Tag ID',
-                                border: OutlineInputBorder(),
-                                hintText: 'Masukkan Game Tag ID (opsional)',
+                            if (_loadingGames)
+                              const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              )
+                            else
+                              DropdownButtonFormField<String?>(
+                                value: _selectedGame,
+                                isExpanded: true, // Prevent overflow
+                                decoration: InputDecoration(
+                                  labelText: AppLocalizations.of(context)!.game,
+                                  border: const OutlineInputBorder(),
+                                  hintText: AppLocalizations.of(context)!.selectGame,
+                                ),
+                                items: [
+                                  DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text(AppLocalizations.of(context)!.none, overflow: TextOverflow.ellipsis),
+                                  ),
+                                  ..._gameList.entries.map((entry) {
+                                    return DropdownMenuItem<String?>(
+                                      value: entry.key, // Game ID
+                                      child: Text(
+                                        entry.value, // Game Name
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedGame = value;
+                                  });
+                                },
                               ),
-                            ),
                             const SizedBox(height: 16),
                           ],
                           
                           // Region
                           DropdownButtonFormField<String>(
                             value: _regionPriority,
-                            decoration: const InputDecoration(
-                              labelText: 'Region',
-                              border: OutlineInputBorder(),
+                            isExpanded: true, // Prevent overflow
+                            decoration: InputDecoration(
+                              labelText: AppLocalizations.of(context)!.region,
+                              border: const OutlineInputBorder(),
                             ),
                             items: _regionOptions.map((option) {
                               return DropdownMenuItem(
                                 value: option['value'],
-                                child: Text(option['label']!),
+                                child: Text(
+                                  option['label']!,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {
@@ -661,25 +729,69 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 16),
                           
                           // Selected Thumbnail
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _thumbnailController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Selected Thumbnail:',
-                                    border: OutlineInputBorder(),
+                              Text(
+                                AppLocalizations.of(context)!.thumbnail,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickThumbnail,
+                                      icon: const Icon(Icons.image),
+                                      label: Text(_thumbnailPath != null 
+                                        ? AppLocalizations.of(context)!.changeThumbnail
+                                        : AppLocalizations.of(context)!.selectFromGallery),
+                                    ),
                                   ),
-                                  readOnly: true,
+                                  if (_thumbnailPath != null) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () {
+                                        setState(() {
+                                          _thumbnailPath = null;
+                                        });
+                                      },
+                                      tooltip: AppLocalizations.of(context)!.removeThumbnail,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (_thumbnailPath != null) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 150,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(_thumbnailPath!),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Center(
+                                          child: Icon(Icons.error, color: Colors.red),
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                onPressed: () {
-                                  // TODO: Implement thumbnail picker
-                                },
-                                child: const Text('Browse'),
-                              ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _thumbnailPath!.split('/').last,
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ],
                           ),
                         ],
@@ -783,7 +895,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: value.isNotEmpty
               ? () => _copyToClipboard(value, label)
               : null,
-          tooltip: 'Copy',
+          tooltip: AppLocalizations.of(context)!.copy,
         ),
       ],
     );

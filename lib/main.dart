@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/tiktok_service.dart';
+import 'l10n/app_localizations.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,6 +23,16 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // English
+        Locale('id', ''), // Indonesian
+      ],
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,
     );
@@ -139,9 +151,10 @@ class _MainScreenState extends State<MainScreen> {
     } catch (e) {
       // Jika file picker gagal, tampilkan dialog manual
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error membaca file: $e'),
+            content: Text(l10n.errorReadingFile + ': $e'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -151,26 +164,27 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _showManualImportDialog() async {
+    final l10n = AppLocalizations.of(context)!;
     final controller = TextEditingController();
     
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Cookies'),
+        title: Text(l10n.importCookiesTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Paste isi file cookies.json di sini:',
-              style: TextStyle(fontSize: 14),
+            Text(
+              l10n.pasteCookies,
+              style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
               maxLines: 10,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Paste JSON cookies di sini...',
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: l10n.pasteJsonCookies,
               ),
             ),
           ],
@@ -178,11 +192,11 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Import'),
+            child: Text(l10n.import),
           ),
         ],
       ),
@@ -192,6 +206,7 @@ class _MainScreenState extends State<MainScreen> {
        final importResult = await TikTokService.importCookiesFromJson(controller.text);
 
        if (mounted) {
+         final l10n = AppLocalizations.of(context)!;
          if (importResult['success'] == true) {
            // Cookies sudah tersimpan permanen, tidak perlu import lagi
            setState(() {
@@ -200,7 +215,7 @@ class _MainScreenState extends State<MainScreen> {
            
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
-               content: Text(importResult['message'] ?? 'Cookies berhasil diimport dan tersimpan permanen'),
+               content: Text(importResult['message'] ?? l10n.cookiesImported),
                backgroundColor: Colors.green,
                duration: const Duration(seconds: 2),
              ),
@@ -208,7 +223,7 @@ class _MainScreenState extends State<MainScreen> {
          } else {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
-               content: Text('Error: ${importResult['error']}'),
+               content: Text('${l10n.error}: ${importResult['error']}'),
                backgroundColor: Colors.red,
              ),
            );
@@ -228,9 +243,10 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     if (!_isLoggedIn) {
+      final l10n = AppLocalizations.of(context)!;
       return Scaffold(
         appBar: AppBar(
-          title: const Text('TikTok RTMP Generator'),
+          title: Text(l10n.appTitle),
           centerTitle: true,
         ),
         body: Center(
@@ -245,24 +261,24 @@ class _MainScreenState extends State<MainScreen> {
                   color: Colors.black,
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Selamat Datang',
-                  style: TextStyle(
+                Text(
+                  l10n.welcome,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Silakan login ke TikTok untuk mulai generate RTMP key',
+                Text(
+                  l10n.welcomeMessage,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
                   onPressed: _handleLogin,
                   icon: const Icon(Icons.login),
-                  label: const Text('Login TikTok'),
+                  label: Text(l10n.loginTikTok),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,
@@ -275,7 +291,7 @@ class _MainScreenState extends State<MainScreen> {
                 OutlinedButton.icon(
                   onPressed: _importCookies,
                   icon: const Icon(Icons.file_upload),
-                  label: const Text('Import Cookies dari File'),
+                  label: Text(l10n.importCookies),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,
@@ -285,12 +301,12 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
-                    'Catatan: Cookies akan tersimpan permanen setelah di-import. Tidak perlu import lagi setiap kali buka aplikasi.',
+                    l10n.cookiesNote,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 ),
               ],

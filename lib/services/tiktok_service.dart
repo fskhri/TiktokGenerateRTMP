@@ -92,6 +92,49 @@ class TikTokService {
     }
   }
 
+  // Upload thumbnail (sama seperti source code Python)
+  static Future<String?> uploadThumbnail(String filePath, String baseUrl, Map<String, String> params) async {
+    try {
+      final cookies = await getCookies();
+      if (cookies == null || cookies.isEmpty) {
+        return null;
+      }
+      
+      final version = await getLiveStudioVersion();
+      final headers = <String, String>{
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) TikTokLIVEStudio/$version Chrome/108.0.5359.215 Electron/22.3.18-tt.8.release.main.44 TTElectron/22.3.18-tt.8.release.main.44 Safari/537.36',
+        'Cookie': cookies,
+      };
+      
+      final file = await http.MultipartFile.fromPath(
+        'file',
+        filePath,
+        filename: 'crop_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${baseUrl}webcast/room/upload/image/').replace(queryParameters: params),
+      );
+      
+      request.headers.addAll(headers);
+      request.files.add(file);
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']?['uri']?.toString();
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error uploading thumbnail: $e');
+      return null;
+    }
+  }
+  
   // Generate stream key
   static Future<Map<String, dynamic>> generateStreamKey({
     required String title,
@@ -101,6 +144,7 @@ class TikTokService {
     bool closeRoomWhenStreamEnds = false,
     String regionPriority = '',
     bool isMatureContent = false,
+    String? thumbnailPath,
   }) async {
     try {
       final cookies = await getCookies();
@@ -169,13 +213,21 @@ class TikTokService {
         'install_id': '7378196538524927745',
       };
       
+      // Upload thumbnail jika ada
+      String? coverUri = '';
+      if (thumbnailPath != null && thumbnailPath.isNotEmpty) {
+        print('Uploading thumbnail: $thumbnailPath');
+        coverUri = await uploadThumbnail(thumbnailPath, baseUrl, params);
+        print('Thumbnail URI: $coverUri');
+      }
+      
       // Build form data sesuai source code Python
       final data = <String, String>{
         'title': title,
         'live_studio': '1',
         'gen_replay': enableReplay.toString().toLowerCase(),
         'chat_auth': '1',
-        'cover_uri': '',
+        'cover_uri': coverUri ?? '',
         'close_room_when_close_stream': closeRoomWhenStreamEnds.toString().toLowerCase(),
         'hashtag_id': hashtagId ?? '',
         'game_tag_id': gameTagId ?? '0',
