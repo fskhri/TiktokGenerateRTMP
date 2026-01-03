@@ -1,11 +1,11 @@
 # TikTok RTMP Key Generator
 
-**Language / Bahasa:** [🇬🇧 English](#english) | [🇮🇩 Bahasa Indonesia](#bahasa-indonesia)
+**Language / Bahasa:** [English](#english) | [Bahasa Indonesia](#bahasa-indonesia)
 
 ---
 
 <a name="english"></a>
-## 🇬🇧 English
+##  English
 
 ### TikTok RTMP Key Generator
 
@@ -153,7 +153,7 @@ This application is not affiliated with TikTok. Use at your own responsibility.
 ---
 
 <a name="bahasa-indonesia"></a>
-## 🇮🇩 Bahasa Indonesia
+## Bahasa Indonesia
 
 ### TikTok RTMP Key Generator
 
