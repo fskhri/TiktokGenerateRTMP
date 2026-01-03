@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import '../services/tiktok_service.dart';
 import '../models/stream_info.dart';
 import '../main.dart';
@@ -20,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _titleController = TextEditingController(text: 'Test Stream');
   String? _thumbnailPath; // Path file thumbnail yang dipilih
+  Uint8List? _thumbnailBytes; // Cached thumbnail bytes untuk performa
   String? _selectedTopic;
   String? _selectedGame; // Game ID yang dipilih
   Map<String, String> _gameList = {}; // Map: game_id -> game_name
@@ -32,6 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isGenerating = false;
   StreamInfo? _streamInfo;
   bool _cookiesLoaded = false;
+  
+  // Controllers untuk output fields (untuk menghindari rebuild)
+  final _rtmpUrlController = TextEditingController();
+  final _shareUrlController = TextEditingController();
 
   final List<Map<String, String?>> _topicOptions = [
     {'value': null, 'label': 'None'},
@@ -95,8 +101,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       
       if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        // Load dan cache thumbnail bytes untuk performa
+        final file = File(path);
+        final bytes = await file.readAsBytes();
         setState(() {
-          _thumbnailPath = result.files.single.path;
+          _thumbnailPath = path;
+          _thumbnailBytes = bytes;
         });
       }
     } catch (e) {
@@ -265,6 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _rtmpUrlController.dispose();
+    _shareUrlController.dispose();
     super.dispose();
   }
 
@@ -329,6 +342,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result['success'] == true) {
       setState(() {
         _streamInfo = StreamInfo.fromMap(result);
+        // Update controllers tanpa rebuild
+        _rtmpUrlController.text = _streamInfo!.fullRtmpUrl;
+        _shareUrlController.text = _streamInfo!.shareUrl;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -490,13 +506,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
+        physics: const ClampingScrollPhysics(), // Lebih smooth di Android
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Cookies Info Section
-            Card(
-              color: _cookiesLoaded ? Colors.green.shade50 : Colors.orange.shade50,
-              child: Padding(
+            RepaintBoundary(
+              child: Card(
+                color: _cookiesLoaded ? Colors.green.shade50 : Colors.orange.shade50,
+                child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
@@ -531,10 +549,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+            ),
             const SizedBox(height: 16),
             
             // Input Section
-            Card(
+            RepaintBoundary(
+              child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -755,6 +775,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onPressed: () {
                                         setState(() {
                                           _thumbnailPath = null;
+                                          _thumbnailBytes = null;
                                         });
                                       },
                                       tooltip: AppLocalizations.of(context)!.removeThumbnail,
@@ -762,25 +783,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ],
                                 ],
                               ),
-                              if (_thumbnailPath != null) ...[
+                              if (_thumbnailPath != null && _thumbnailBytes != null) ...[
                                 const SizedBox(height: 8),
-                                Container(
-                                  height: 150,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(_thumbnailPath!),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Center(
-                                          child: Icon(Icons.error, color: Colors.red),
-                                        );
-                                      },
+                                RepaintBoundary(
+                                  child: Container(
+                                    height: 150,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.memory(
+                                        _thumbnailBytes!,
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 600, // Resize untuk performa
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Center(
+                                            child: Icon(Icons.error, color: Colors.red),
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -798,34 +822,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+            ),
             
             const SizedBox(height: 16),
             
             // Outputs Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Outputs',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+            RepaintBoundary(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Outputs',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_streamInfo != null) ...[
-                      _buildOutputField('RTMP URL', _streamInfo!.fullRtmpUrl),
+                      const SizedBox(height: 16),
+                      RepaintBoundary(
+                        child: _buildOutputField('RTMP URL', _rtmpUrlController),
+                      ),
                       const SizedBox(height: 12),
-                      _buildOutputField('Share URL', _streamInfo!.shareUrl),
-                    ] else ...[
-                      _buildOutputField('RTMP URL', ''),
-                      const SizedBox(height: 12),
-                      _buildOutputField('Share URL', ''),
+                      RepaintBoundary(
+                        child: _buildOutputField('Share URL', _shareUrlController),
+                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -833,7 +858,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             
             // Action Buttons
-            Wrap(
+            RepaintBoundary(
+              child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
@@ -868,18 +894,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOutputField(String label, String value) {
+  Widget _buildOutputField(String label, TextEditingController controller) {
     return Row(
       children: [
         Expanded(
           child: TextField(
-            controller: TextEditingController(text: value),
+            controller: controller,
             decoration: InputDecoration(
               labelText: label,
               border: const OutlineInputBorder(),
@@ -892,8 +919,8 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.copy, size: 20),
-          onPressed: value.isNotEmpty
-              ? () => _copyToClipboard(value, label)
+          onPressed: controller.text.isNotEmpty
+              ? () => _copyToClipboard(controller.text, label)
               : null,
           tooltip: AppLocalizations.of(context)!.copy,
         ),
