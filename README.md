@@ -142,9 +142,13 @@ The application supports multiple languages:
 
 The language will be automatically detected based on your device settings, or you can change it in the app settings.
 
-### License
+### Credits & Acknowledgments
 
-This project is created for educational purposes and personal use.
+This Android application is based on the original Python implementation by [Loukious](https://github.com/Loukious). Special thanks to the creator for providing the Python source code that made this Android implementation possible.
+
+**Original Repository:** [TikTokStreamKeyGenerator](https://github.com/Loukious/TikTokStreamKeyGenerator)
+
+The Python script served as the foundation and reference for implementing the TikTok RTMP stream key generation functionality in this Flutter/Android application.
 
 ### Disclaimer
 
@@ -290,9 +294,14 @@ Aplikasi mendukung beberapa bahasa:
 
 Bahasa akan otomatis terdeteksi berdasarkan pengaturan device Anda, atau Anda bisa mengubahnya di pengaturan aplikasi.
 
-### License
+### Kredit & Ucapan Terima Kasih
 
-Project ini dibuat untuk keperluan edukasi dan penggunaan pribadi.
+Aplikasi Android ini didasarkan pada implementasi Python asli oleh [Loukious](https://github.com/Loukious). Terima kasih khusus kepada pembuatnya karena telah menyediakan source code Python yang memungkinkan implementasi Android ini dibuat.
+
+**Repository Asli:** [TikTokStreamKeyGenerator](https://github.com/Loukious/TikTokStreamKeyGenerator)
+
+Script Python tersebut menjadi fondasi dan referensi untuk mengimplementasikan fungsi generate TikTok RTMP stream key dalam aplikasi Flutter/Android ini.
+
 
 ### Disclaimer
 
@@ -300,4 +309,4 @@ Aplikasi ini tidak berafiliasi dengan TikTok. Gunakan dengan tanggung jawab Anda
 
 ---
 
-**Language / Bahasa:** [🇬🇧 English](#english) | [🇮🇩 Bahasa Indonesia](#bahasa-indonesia)
+**Language / Bahasa:** [English](#english) | [Bahasa Indonesia](#bahasa-indonesia)
