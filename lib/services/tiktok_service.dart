@@ -116,6 +116,20 @@ class TikTokService {
         throw Exception('Silakan login terlebih dahulu');
       }
       
+      // Log cookies untuk debugging (jangan log full untuk privacy)
+      print('Cookies length: ${cookies.length}');
+      print('Cookies preview: ${cookies.substring(0, cookies.length > 150 ? 150 : cookies.length)}...');
+      
+      // Check apakah ada cookie penting
+      final hasSessionId = cookies.contains('sessionid') || cookies.contains('sid_tt');
+      final hasSidGuard = cookies.contains('sid_guard');
+      print('Has sessionid/sid_tt: $hasSessionId');
+      print('Has sid_guard: $hasSidGuard');
+      
+      if (!hasSessionId) {
+        print('WARNING: Cookies mungkin tidak lengkap. Pastikan login via WebView atau import dari file.');
+      }
+      
       // Get server URL
       final baseUrl = await getServerUrl();
       print('Base URL: $baseUrl');
@@ -206,12 +220,25 @@ class TikTokService {
       
       // Check for error in response
       if (createData['data'] != null && createData['data']['prompts'] != null) {
-        throw Exception('Error: ${createData['data']['prompts']}');
+        final prompts = createData['data']['prompts'];
+        if (prompts.toString().toLowerCase().contains('login') || 
+            prompts.toString().toLowerCase().contains('please login')) {
+          throw Exception('Please login first. Cookies mungkin tidak valid atau expired. Coba login ulang atau import cookies dari file.');
+        }
+        throw Exception('Error: $prompts');
       }
       
       if (createData['status_code'] != null && createData['status_code'] != 0) {
         final errorMsg = createData['status_msg'] ?? 'Unknown error';
         final errorData = createData['data'] ?? {};
+        
+        // Check jika error terkait login
+        if (errorMsg.toLowerCase().contains('login') || 
+            errorMsg.toString().toLowerCase().contains('please login') ||
+            errorData.toString().toLowerCase().contains('login')) {
+          throw Exception('Please login first. Cookies mungkin tidak valid atau expired. Coba login ulang atau import cookies dari file.');
+        }
+        
         throw Exception('Error create room: $errorMsg\nData: $errorData');
       }
       
@@ -396,6 +423,37 @@ class TikTokService {
         'success': false,
         'error': 'Error parsing JSON: $e',
       };
+    }
+  }
+  
+  // Fetch game tags dari API (sama seperti source code Python)
+  static Future<Map<String, String>> fetchGameTags() async {
+    try {
+      // Gunakan base URL yang sama dengan source code Python
+      final url = 'https://webcast16-normal-c-useast2a.tiktokv.com/webcast/room/hashtag/list/';
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final gameTagList = data['data']['game_tag_list'] as List;
+        
+        // Convert ke Map: id -> show_name
+        final Map<String, String> games = {};
+        for (var game in gameTagList) {
+          final id = game['id']?.toString() ?? '';
+          final name = game['show_name']?.toString() ?? '';
+          if (id.isNotEmpty && name.isNotEmpty) {
+            games[id] = name;
+          }
+        }
+        
+        return games;
+      }
+      
+      return {};
+    } catch (e) {
+      print('Error fetching game tags: $e');
+      return {};
     }
   }
   

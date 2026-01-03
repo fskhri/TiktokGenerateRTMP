@@ -45,11 +45,22 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final isLoggedIn = await TikTokService.checkLoginStatus();
-    setState(() {
-      _isLoggedIn = isLoggedIn;
-      _checkingLogin = false;
-    });
+    // Cek apakah cookies sudah ada
+    final cookies = await TikTokService.getCookies();
+    if (cookies != null && cookies.isNotEmpty) {
+      // Cookies sudah ada, langsung set logged in
+      // Tidak perlu check login status karena bisa lambat
+      setState(() {
+        _isLoggedIn = true;
+        _checkingLogin = false;
+      });
+    } else {
+      // Tidak ada cookies, perlu login/import
+      setState(() {
+        _isLoggedIn = false;
+        _checkingLogin = false;
+      });
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -104,14 +115,14 @@ class _MainScreenState extends State<MainScreen> {
 
       if (mounted) {
         if (importResult['success'] == true) {
-          // Set logged in langsung, tidak perlu tunggu checkLoginStatus
+          // Set logged in langsung, cookies sudah tersimpan permanen
           setState(() {
             _isLoggedIn = true;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(importResult['message'] ?? 'Cookies berhasil diimport'),
+              content: Text(importResult['message'] ?? 'Cookies berhasil diimport dan tersimpan'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -182,14 +193,14 @@ class _MainScreenState extends State<MainScreen> {
 
        if (mounted) {
          if (importResult['success'] == true) {
-           // Set logged in langsung
+           // Cookies sudah tersimpan permanen, tidak perlu import lagi
            setState(() {
              _isLoggedIn = true;
            });
            
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(
-               content: Text(importResult['message'] ?? 'Cookies berhasil diimport'),
+               content: Text(importResult['message'] ?? 'Cookies berhasil diimport dan tersimpan permanen'),
                backgroundColor: Colors.green,
                duration: const Duration(seconds: 2),
              ),
@@ -273,10 +284,14 @@ class _MainScreenState extends State<MainScreen> {
                     textStyle: const TextStyle(fontSize: 16),
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'atau',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Catatan: Cookies akan tersimpan permanen setelah di-import. Tidak perlu import lagi setiap kali buka aplikasi.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
                 ),
               ],
             ),

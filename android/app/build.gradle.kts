@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.tiktokgeneratertmp"
+    namespace = "com.fskhri.tiktokgeneratertmp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.tiktokgeneratertmp"
+        applicationId = "com.fskhri.tiktokgeneratertmp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -37,6 +37,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    // TikTok OpenSDK (optional, untuk future use)
+    // implementation("com.tiktok.open.sdk:tiktok-open-sdk-core:2.2.0")
+    // implementation("com.tiktok.open.sdk:tiktok-open-sdk-auth:2.2.0")
 }
 
 flutter {

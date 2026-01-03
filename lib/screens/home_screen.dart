@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:convert';
 import '../services/tiktok_service.dart';
 import '../models/stream_info.dart';
+import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onCookiesImported;
@@ -18,8 +19,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _titleController = TextEditingController(text: 'Test Stream');
   final _thumbnailController = TextEditingController();
-  final _gameTagController = TextEditingController();
   String? _selectedTopic;
+  String? _selectedGame; // Game ID yang dipilih
+  Map<String, String> _gameList = {}; // Map: game_id -> game_name
+  bool _loadingGames = false;
   String _regionPriority = 'id';
   String _streamType = 'no_spoofing';
   bool _enableReplay = false;
@@ -60,10 +63,27 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _checkCookiesStatus();
+    // Load game list saat init (untuk persiapan)
+    _loadGameList();
     // Listen untuk perubahan cookies
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkCookiesStatus();
     });
+  }
+  
+  Future<void> _loadGameList() async {
+    if (_gameList.isEmpty && !_loadingGames) {
+      setState(() {
+        _loadingGames = true;
+      });
+      
+      final games = await TikTokService.fetchGameTags();
+      
+      setState(() {
+        _gameList = games;
+        _loadingGames = false;
+      });
+    }
   }
 
   @override
@@ -256,8 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
       hashtagId = topicMap[_selectedTopic];
       
       // Jika gaming, perlu game_tag_id
-      if (_selectedTopic == 'gaming' && _gameTagController.text.trim().isNotEmpty) {
-        gameTagId = _gameTagController.text.trim();
+      if (_selectedTopic == 'gaming' && _selectedGame != null && _selectedGame!.isNotEmpty) {
+        gameTagId = _selectedGame;
       } else {
         gameTagId = '0';
       }
@@ -419,8 +439,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirm == true) {
       await TikTokService.saveCookies('');
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        // Kembali ke MainScreen (menu login awal) dengan menghapus semua route
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+          (route) => false, // Hapus semua route sebelumnya
         );
       }
     }
