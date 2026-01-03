@@ -126,14 +126,6 @@ flutter build apk --release
 
 APK file will be located at: `build/app/outputs/flutter-apk/app-release.apk`
 
-### Build App Bundle (for Google Play)
-
-```bash
-flutter build appbundle --release
-```
-
-AAB file will be located at: `build/app/outputs/bundle/release/app-release.aab`
-
 ### Language Selection
 
 The application supports multiple languages:
@@ -277,14 +269,6 @@ flutter build apk --release
 ```
 
 File APK akan berada di: `build/app/outputs/flutter-apk/app-release.apk`
-
-### Build App Bundle (untuk Google Play)
-
-```bash
-flutter build appbundle --release
-```
-
-File AAB akan berada di: `build/app/outputs/bundle/release/app-release.aab`
 
 ### Pemilihan Bahasa
 
